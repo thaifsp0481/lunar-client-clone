@@ -32,6 +32,22 @@ jobs:
           Write-Host "Geometry Dash target: $($manifest.gd.win)"
           Write-Host "Geode SDK version: $($manifest.geode)"
 
+      - name: Patch Windows PathView comparison for MSVC
+        shell: pwsh
+        run: |
+          $sourceFile = "eclipsemenu/src/modules/gui/cocos/components/DirectoryComboComponent.hpp"
+          $source = Get-Content $sourceFile -Raw
+          $old = 'm_index = std::ranges::find(items, value) - items.begin();'
+          $new = 'm_index = std::ranges::find(items, asp::fs::Path{value}) - items.begin();'
+
+          if (-not $source.Contains($old)) {
+            throw "Expected PathView comparison was not found; refusing to patch an unexpected source revision."
+          }
+
+          $source = $source.Replace($old, $new)
+          Set-Content -Path $sourceFile -Value $source -NoNewline -Encoding utf8
+          Write-Host "Patched PathView to Path comparison."
+
       - name: Build with the Geode SDK declared by Eclipse
         id: build
         uses: geode-sdk/build-geode-mod@main
