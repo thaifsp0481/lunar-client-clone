@@ -1,0 +1,51 @@
+name: Build Eclipse for Geometry Dash 2.2091 (Windows)
+
+on:
+  push:
+    branches:
+      - eclipse-menu-2.2091-build
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows:
+    name: Compile Eclipse for GD 2.2091 (Win64)
+    runs-on: windows-latest
+    steps:
+      - name: Check out build workflow
+        uses: actions/checkout@v4
+
+      - name: Clone official Eclipse source
+        shell: pwsh
+        run: |
+          git clone --depth 1 --branch main https://git.eclipse.menu/EclipseMenu/EclipseMenu.git eclipsemenu
+          if ($LASTEXITCODE -ne 0) {
+            throw "Could not clone the official Eclipse source repository."
+          }
+
+          $manifest = Get-Content eclipsemenu/mod.json -Raw | ConvertFrom-Json
+          if ($manifest.gd.win -ne "2.2091") {
+            throw "The official source manifest does not target Geometry Dash 2.2091."
+          }
+          Write-Host "Geometry Dash target: $($manifest.gd.win)"
+          Write-Host "Geode SDK version: $($manifest.geode)"
+
+      - name: Build with the Geode SDK declared by Eclipse
+        id: build
+        uses: geode-sdk/build-geode-mod@main
+        with:
+          path: eclipsemenu
+          sdk: given
+          target: Win64
+          build-config: RelWithDebInfo
+          export-pdb: true
+
+      - name: Upload compiled Windows .geode
+        uses: actions/upload-artifact@v4
+        with:
+          name: Eclipse-GD-2.2091-Windows
+          path: ${{ steps.build.outputs.build-output }}/*.geode
+          if-no-files-found: error
+          retention-days: 14
